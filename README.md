@@ -50,14 +50,10 @@ Server:
 	```
 	Server server = new Server();
 	SharedData data = new SharedData(SharedDataType.FILE);
-	data.addMetaData(SharedData.METADATA_FILE_PATH, 
-"PATH_WHERE_FILE_WILL_BE_STORED");
-	data.addMetaData(SharedData.METADATA_FILE_CONTENT, new 
-SharedData.SharedDataFileReader("FILE_TO_SHARE").read());
-	data.addMetaData(SharedData.METADATA_FILE_SIZE, new 
-SharedData.SharedDataFileReader("FILE_TO_SHARE").length());
+	data.addMetaData(SharedData.METADATA_FILE_PATH, "PATH_WHERE_FILE_WILL_BE_STORED");
+	data.addMetaData(SharedData.METADATA_FILE_CONTENT, new SharedData.SharedDataFileReader("FILE_TO_SHARE").read());
+	data.addMetaData(SharedData.METADATA_FILE_SIZE, new SharedData.SharedDataFileReader("FILE_TO_SHARE").length());
 	server.hostData(data, "localhost");
-
 	```
 
 Client:
