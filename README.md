@@ -48,7 +48,6 @@ How can I share a file?
 Server:
 
 	```
-	
 	Server server = new Server();
 	SharedData data = new SharedData(SharedDataType.FILE);
 	data.addMetaData(SharedData.METADATA_FILE_PATH, 
@@ -58,12 +57,12 @@ SharedData.SharedDataFileReader("FILE_TO_SHARE").read());
 	data.addMetaData(SharedData.METADATA_FILE_SIZE, new 
 SharedData.SharedDataFileReader("FILE_TO_SHARE").length());
 	server.hostData(data, "localhost");
+
 	```
 
 Client:
 
 	```
-	
 	Client client = new Client(SharedData.DEFAULT_PORT);
 	client.downloadFromServer("localhost");
 	```
