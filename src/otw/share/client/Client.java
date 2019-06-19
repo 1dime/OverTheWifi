@@ -6,9 +6,18 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.Enumeration;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import otw.share.SharedData;
 import otw.share.SharedData.SharedDataType;
 import otw.share.xplatform.Clipboard;
@@ -133,8 +142,12 @@ public class Client extends XPlatform
 		try
 		{
 			SharedData sharedData = (SharedData) this.getObjectFromServer(hostName).readObject();
-			//Return the retrieved SharedData
-			return sharedData;
+			
+			//Are we the intended target?
+			if(isCurrentClientIntendedTarget(sharedData))
+			{
+				return sharedData;
+			}
 		}catch(IOException ioe)
 		{
 			this.onClientConnected.onFailedToRetrieveData(ioe);
@@ -151,13 +164,88 @@ public class Client extends XPlatform
 	{
 		//Get the hosted data
 		SharedData dataRetrieved = this.getSharedData(hostName);
+		if(dataRetrieved == null)
+			return;
 		//Check if the dataRetrieved's type is CLIPBOARD_DATA
 		if(dataRetrieved.getSharedDataType().equals(SharedDataType.CLIPBOARD_DATA))
 		{
-			//Copy the text using the crossplatform clipboard
-			Clipboard clipboard = new Clipboard(this.context);
-			//Copy the text
-			clipboard.copy(dataRetrieved);
+			if(isCurrentClientIntendedTarget(dataRetrieved))
+			{
+				if(isAndroid())
+				{
+					AlertDialog dialog = new AlertDialog.Builder(context)
+							.setTitle("Accept shared text?")
+							.setMessage("Someone is trying to share their clipboard data with you. Accept?")
+							.setPositiveButton("Accept", new OnClickListener() {
+								
+								@Override
+								public void onClick(DialogInterface arg0, int arg1) {
+									// TODO Auto-generated method stub
+									//Copy the text using the crossplatform clipboard
+									Clipboard clipboard = new Clipboard(context);
+									//Copy the text
+									clipboard.copy(dataRetrieved);
+								}
+							})
+							.setNegativeButton("Deny", new OnClickListener() {
+
+								@Override
+								public void onClick(DialogInterface arg0, int arg1) {
+									// TODO Auto-generated method stub
+									arg0.dismiss();
+								}
+								
+							})
+							.show();
+				}
+				else
+				{
+					System.out.println("Copying data targeted to you");
+					//Copy the text using the crossplatform clipboard
+					Clipboard clipboard = new Clipboard(this.context);
+					//Copy the text
+					clipboard.copy(dataRetrieved);
+				}
+			}else
+			{
+				if(isAndroid())
+				{
+					AlertDialog dialog = new AlertDialog.Builder(context)
+							.setTitle("Copy hosted text?")
+							.setMessage("Someone is sharing their clipboard data. Accept?")
+							.setPositiveButton("Accept", new OnClickListener()
+									{
+
+										@Override
+										public void onClick(DialogInterface arg0, int arg1) {
+											// TODO Auto-generated method stub
+											//Copy the text using the crossplatform clipboard
+											Clipboard clipboard = new Clipboard(context);
+											//Copy the text
+											clipboard.copy(dataRetrieved);
+										}
+								
+									})
+							.setNegativeButton("Deny", new OnClickListener()
+									{
+
+										@Override
+										public void onClick(DialogInterface arg0, int arg1) {
+											// TODO Auto-generated method stub
+											arg0.dismiss();
+										}
+								
+									})
+							.show();
+				}
+				else
+				{
+					//Copy the text using the crossplatform clipboard
+					Clipboard clipboard = new Clipboard(this.context);
+					//Copy the text
+					clipboard.copy(dataRetrieved);
+				}
+			}
 		}
 	}
 	
@@ -165,27 +253,62 @@ public class Client extends XPlatform
 	{
 		//GEt the hosted data
 		SharedData dataRetrieved = this.getSharedData(hostName);
+		if(dataRetrieved == null)
+			return;
 		//Check if the dataRetrieved's type is FILE
 		if(dataRetrieved.getSharedDataType().equals(SharedDataType.FILE))
 		{
-			String path = dataRetrieved.getMetaData(SharedData.METADATA_FILE_PATH).toString();
-			int fileLength =  Integer.parseInt(dataRetrieved.getMetaData(SharedData.METADATA_FILE_SIZE).toString());
-			byte[] content = (byte[]) dataRetrieved.getMetaData(SharedData.METADATA_FILE_CONTENT);
-			try {
-				BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(new File(path)));
-				outputStream.write(content);
-				outputStream.flush();
-				outputStream.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			if(this.isCurrentClientIntendedTarget(dataRetrieved))
+			{
+				if(isAndroid())
+				{
+					//Show a dialog or use notifications
+				}
+				else
+				{
+					
+				}
 			}
-			
 		}
 	}
-	
-	
+
+	boolean isIntendedTarget = false;
+	public boolean isCurrentClientIntendedTarget(SharedData data)
+	{
+		String address;
+		try
+		{
+			Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+			while(interfaces.hasMoreElements())
+			{
+				NetworkInterface deviceInterface = interfaces.nextElement();
+				if(deviceInterface.isLoopback() || !deviceInterface.isUp())
+					continue;
+				Enumeration<InetAddress> innerAddresses = deviceInterface.getInetAddresses();
+				while(innerAddresses.hasMoreElements())
+				{
+					InetAddress inetAddress = innerAddresses.nextElement();
+					if(inetAddress instanceof Inet6Address) continue;
+					address = inetAddress.getHostAddress();
+					if(data.getMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT) != null)
+					{
+						if(data.getMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT).equals(address))
+						{
+							return true;
+						}else
+						{
+							isIntendedTarget = false;
+						}
+					}else
+					{
+						isIntendedTarget = false;
+					}
+				}
+			}
+		}catch(SocketException se)
+		{
+			se.printStackTrace();
+		}
+		return isIntendedTarget;
+	}
 }

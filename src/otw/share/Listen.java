@@ -1,16 +1,28 @@
 package otw.share;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.List;
+import java.util.Enumeration;
 
+import android.util.Log;
 import otw.share.client.Client;
 
 public class Listen {
 
-	public static void main(String[] args) throws UnknownHostException 
+	public static void main(String[] args) throws Exception 
 	{
 		Client client = new Client(SharedData.DEFAULT_PORT);
-		client.downloadFromServer("localhost");
+		SharedData data = SharedData.setShareData("", SharedData.SharedDataType.CLIPBOARD_DATA);
+		data.addMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT, "192.168.0.31");
+		if(client.isCurrentClientIntendedTarget(data))
+		{
+			System.out.println("Current intended");
+		}
 	}
 
+   
 }

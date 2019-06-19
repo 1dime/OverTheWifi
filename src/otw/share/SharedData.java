@@ -53,9 +53,13 @@ public class SharedData extends Object implements Serializable
 		}
 	}
 	
-	public static String METADATA_FILE_PATH = "FILE_PATH";
-	public static String METADATA_FILE_CONTENT = "FILE_CONTENT";
-	public static String METADATA_FILE_SIZE = "FILE_SIZE";
+	public static class MetaData
+	{
+		public static String METADATA_FILE_PATH = "FILE_PATH";
+		public static String METADATA_FILE_CONTENT = "FILE_CONTENT";
+		public static String METADATA_FILE_SIZE = "FILE_SIZE";
+		public static String METADATA_TARGET_CLIENT = "TARGET_CLIENT";
+	}
 	
 	private List<Object> sharedDataList = new ArrayList<>();
 	private List<SharedDataType> sharedDataTypeList = new ArrayList<>();
