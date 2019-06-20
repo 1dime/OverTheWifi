@@ -1,18 +1,9 @@
 package otw.share.client;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.net.Socket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Enumeration;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -144,10 +135,7 @@ public class Client extends XPlatform
 			SharedData sharedData = (SharedData) this.getObjectFromServer(hostName).readObject();
 			
 			//Are we the intended target?
-			if(isCurrentClientIntendedTarget(sharedData))
-			{
-				return sharedData;
-			}
+			return sharedData;
 		}catch(IOException ioe)
 		{
 			this.onClientConnected.onFailedToRetrieveData(ioe);
@@ -160,92 +148,78 @@ public class Client extends XPlatform
 		return null;
 	}
 	
+	public void copyTextFromSharedData(SharedData data)
+	{
+		SharedData dataRetrieved = data;
+		//Check if the dataRetrieved's type is CLIPBOARD_DATA
+				if(dataRetrieved.getSharedDataType().equals(SharedDataType.CLIPBOARD_DATA))
+				{
+					if(isAndroid())
+					{
+						AlertDialog dialog = new AlertDialog.Builder(context)
+								.setTitle("Copy hosted text?")
+								.setMessage("Someone is sharing their clipboard data. Accept?")
+								.setPositiveButton("Accept", new OnClickListener()
+										{
+
+											@Override
+											public void onClick(DialogInterface arg0, int arg1) {
+												// TODO Auto-generated method stub
+												//Copy the text using the crossplatform clipboard
+												Clipboard clipboard = new Clipboard(context);
+												//Copy the text
+												clipboard.copy(dataRetrieved);
+											}
+									
+										})
+								.setNegativeButton("Deny", new OnClickListener()
+										{
+
+											@Override
+											public void onClick(DialogInterface arg0, int arg1) {
+												// TODO Auto-generated method stub
+												arg0.dismiss();
+											}
+									
+										})
+								.show();
+					}
+					else
+					{
+						//Copy the text using the crossplatform clipboard
+						Clipboard clipboard = new Clipboard(this.context);
+						//Copy the text
+						clipboard.copy(dataRetrieved);
+					}
+				}
+	}
+	
 	public void copyTextFromServer(String hostName)
 	{
 		//Get the hosted data
 		SharedData dataRetrieved = this.getSharedData(hostName);
 		if(dataRetrieved == null)
 			return;
-		//Check if the dataRetrieved's type is CLIPBOARD_DATA
-		if(dataRetrieved.getSharedDataType().equals(SharedDataType.CLIPBOARD_DATA))
+		this.copyTextFromSharedData(dataRetrieved);
+	}
+	
+	public void downloadFromSharedData(SharedData data)
+	{
+		SharedData dataRetrieved = data;
+		//Check if the dataRetrieved's type is FILE
+		if(dataRetrieved.getSharedDataType().equals(SharedDataType.FILE))
 		{
-			if(isCurrentClientIntendedTarget(dataRetrieved))
-			{
-				if(isAndroid())
-				{
-					AlertDialog dialog = new AlertDialog.Builder(context)
-							.setTitle("Accept shared text?")
-							.setMessage("Someone is trying to share their clipboard data with you. Accept?")
-							.setPositiveButton("Accept", new OnClickListener() {
-								
-								@Override
-								public void onClick(DialogInterface arg0, int arg1) {
-									// TODO Auto-generated method stub
-									//Copy the text using the crossplatform clipboard
-									Clipboard clipboard = new Clipboard(context);
-									//Copy the text
-									clipboard.copy(dataRetrieved);
-								}
-							})
-							.setNegativeButton("Deny", new OnClickListener() {
-
-								@Override
-								public void onClick(DialogInterface arg0, int arg1) {
-									// TODO Auto-generated method stub
-									arg0.dismiss();
-								}
-								
-							})
-							.show();
-				}
-				else
-				{
-					System.out.println("Copying data targeted to you");
-					//Copy the text using the crossplatform clipboard
-					Clipboard clipboard = new Clipboard(this.context);
-					//Copy the text
-					clipboard.copy(dataRetrieved);
-				}
-			}else
-			{
-				if(isAndroid())
-				{
-					AlertDialog dialog = new AlertDialog.Builder(context)
-							.setTitle("Copy hosted text?")
-							.setMessage("Someone is sharing their clipboard data. Accept?")
-							.setPositiveButton("Accept", new OnClickListener()
-									{
-
-										@Override
-										public void onClick(DialogInterface arg0, int arg1) {
-											// TODO Auto-generated method stub
-											//Copy the text using the crossplatform clipboard
-											Clipboard clipboard = new Clipboard(context);
-											//Copy the text
-											clipboard.copy(dataRetrieved);
-										}
-								
-									})
-							.setNegativeButton("Deny", new OnClickListener()
-									{
-
-										@Override
-										public void onClick(DialogInterface arg0, int arg1) {
-											// TODO Auto-generated method stub
-											arg0.dismiss();
-										}
-								
-									})
-							.show();
-				}
-				else
-				{
-					//Copy the text using the crossplatform clipboard
-					Clipboard clipboard = new Clipboard(this.context);
-					//Copy the text
-					clipboard.copy(dataRetrieved);
-				}
+			try {
+				FileWriter writer = new FileWriter(dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_PATH).toString());
+				writer.write(dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT).toString());
+				writer.flush();
+				writer.close();
+				
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
+			
 		}
 	}
 	
@@ -255,60 +229,46 @@ public class Client extends XPlatform
 		SharedData dataRetrieved = this.getSharedData(hostName);
 		if(dataRetrieved == null)
 			return;
-		//Check if the dataRetrieved's type is FILE
-		if(dataRetrieved.getSharedDataType().equals(SharedDataType.FILE))
-		{
-			if(this.isCurrentClientIntendedTarget(dataRetrieved))
-			{
-				if(isAndroid())
-				{
-					//Show a dialog or use notifications
-				}
-				else
-				{
-					
-				}
-			}
-		}
+		
+		this.downloadFromSharedData(dataRetrieved);
 	}
-
-	boolean isIntendedTarget = false;
-	public boolean isCurrentClientIntendedTarget(SharedData data)
+	
+	public Object getDataFromOtherType(String hostname)
 	{
-		String address;
-		try
-		{
-			Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-			while(interfaces.hasMoreElements())
-			{
-				NetworkInterface deviceInterface = interfaces.nextElement();
-				if(deviceInterface.isLoopback() || !deviceInterface.isUp())
-					continue;
-				Enumeration<InetAddress> innerAddresses = deviceInterface.getInetAddresses();
-				while(innerAddresses.hasMoreElements())
-				{
-					InetAddress inetAddress = innerAddresses.nextElement();
-					if(inetAddress instanceof Inet6Address) continue;
-					address = inetAddress.getHostAddress();
-					if(data.getMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT) != null)
-					{
-						if(data.getMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT).equals(address))
-						{
-							return true;
-						}else
-						{
-							isIntendedTarget = false;
-						}
-					}else
-					{
-						isIntendedTarget = false;
-					}
-				}
-			}
-		}catch(SocketException se)
-		{
-			se.printStackTrace();
-		}
-		return isIntendedTarget;
+		SharedData data = this.getSharedData(hostname);
+		if(data == null)
+			return "";
+		
+		if(data.getSharedDataType().equals(SharedDataType.OTHER))
+			return data.getSharedData();
+		
+		return null;
 	}
+	
+	public Object listenOnServer(String ipAddress)
+	{
+		Object result = new Object();
+		SharedData data = this.getSharedData(ipAddress);
+		String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+		switch(sharedDataType)
+		{
+		case "CLIPBOARD_DATA":
+			copyTextFromSharedData(data);
+			break;
+			
+		case "FILE":
+			downloadFromSharedData(data);
+			break;
+			
+		case "OTHER":
+			result = data.getSharedData();
+			break;
+		default:
+			result = data.getSharedData();
+			break;
+		}
+		
+		return result;
+	}
+	
 }

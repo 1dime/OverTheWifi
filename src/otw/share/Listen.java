@@ -17,11 +17,8 @@ public class Listen {
 	{
 		Client client = new Client(SharedData.DEFAULT_PORT);
 		SharedData data = SharedData.setShareData("", SharedData.SharedDataType.CLIPBOARD_DATA);
-		data.addMetaData(SharedData.MetaData.METADATA_TARGET_CLIENT, "192.168.0.31");
-		if(client.isCurrentClientIntendedTarget(data))
-		{
-			System.out.println("Current intended");
-		}
+		client.listenOnServer("localhost");
+		
 	}
 
    

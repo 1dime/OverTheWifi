@@ -4,11 +4,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import android.content.Context;
 import otw.share.SharedData;
@@ -16,6 +11,7 @@ import otw.share.xplatform.XPlatform;
 
 public class Server extends XPlatform
 {
+	private boolean hasConnectionBeenMade = false; //For the while loop for multiple connections
 	private Socket socket;
 	private ServerSocket serverSocket;
 	private Context context;
@@ -73,11 +69,13 @@ public class Server extends XPlatform
 					}
 			
 				});
+		this.HOSTING_PORT = SharedData.DEFAULT_PORT;
 	}
 	
 	public Server(Context context)
 	{
 		this.context = context;
+		this.HOSTING_PORT = SharedData.DEFAULT_PORT;
 		setOnServerHostingSharedData(new OnServerHostingSharedData()
 		{
 
@@ -313,24 +311,37 @@ public class Server extends XPlatform
 	
 	public void hostData(SharedData sharedData, String hostName)
 	{
-		try {
-			//Create the writer
-			ObjectOutputStream streamWriter = this.getStreamWriter(hostName);
-			//Write it all out
-			streamWriter.writeObject(sharedData);
-			//Flush the writer
-			streamWriter.flush();
-			//Close the writer
-			streamWriter.close();
-			
-			//Close the socket
-			getSocket().close();
-			//End the server
-			getServerSocket().close();
+		//Check if metadata contains shareddatatype for automation
+		if(sharedData.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE) == null)
+		{
+			this.onServerHosting.onFailedToCreateServer(new Throwable(SharedData.MetaData.METADATA_SHARED_DATA_TYPE + " metadata is not set in SharedData"));
+			return;
+		}
+		
+		try 
+		{
+			if(!this.hasConnectionBeenMade)
+			{
+				//Create the writer
+				ObjectOutputStream streamWriter = this.getStreamWriter(hostName);
+				//Write it all out
+				streamWriter.writeObject(sharedData);
+				//Flush the writer
+				streamWriter.flush();
+				//Close the writer
+				streamWriter.close();
+				
+				//Close the socket
+				getSocket().close();
+				//End the server
+				getServerSocket().close();
+				//The connection has been made
+				this.hasConnectionBeenMade = true;
+			}
 		} catch (IOException | NullPointerException e) 
 		{
 			//Notify of the error
 			this.onServerHosting.onFailedToHostSharedData(e);
-		}
+		} 
 	}
 }

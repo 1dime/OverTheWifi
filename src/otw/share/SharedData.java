@@ -13,18 +13,30 @@ public class SharedData extends Object implements Serializable
 	
 	public SharedData(SharedDataType dataType)
 	{
-		this.dataType = dataType;
+		this.setSharedDataType(dataType);
+	}
+	
+	public SharedData()
+	{
+		//Notify that not using new SharedData(SharedDataType) is not recommended
+		System.out.println("Not using new SharedData(SharedDataType) will require you to run setSharedDataType(SharedDataType)");
+	}
+	
+	public void setSharedDataType(SharedDataType type)
+	{
+		this.dataType = type;
+		this.addMetaData(MetaData.METADATA_SHARED_DATA_TYPE, type);
 	}
 	
 	public static int DEFAULT_PORT = 2077; //There's a cyberpunk reference in there somewhere
-	public static enum SharedDataType
+	public static enum SharedDataType implements Serializable
 	{
 		CLIPBOARD_DATA, //Supports hosting clipboard data
 		FILE, //Supports hosting files
 		OTHER //Support for images and others not stated
 	}
 	
-	public static class SharedDataFileReader
+	public static class SharedDataFileReader implements Serializable
 	{
 		private String path;
 		public SharedDataFileReader(String path)
@@ -53,12 +65,13 @@ public class SharedData extends Object implements Serializable
 		}
 	}
 	
-	public static class MetaData
+	public static class MetaData implements Serializable
 	{
 		public static String METADATA_FILE_PATH = "FILE_PATH";
 		public static String METADATA_FILE_CONTENT = "FILE_CONTENT";
 		public static String METADATA_FILE_SIZE = "FILE_SIZE";
 		public static String METADATA_TARGET_CLIENT = "TARGET_CLIENT";
+		public static String METADATA_SHARED_DATA_TYPE = "SHARED_DATA_TYPE";
 	}
 	
 	private List<Object> sharedDataList = new ArrayList<>();
