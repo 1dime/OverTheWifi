@@ -18,8 +18,7 @@ Server:
 	```
 	Server server = new Server();
 	
-	ShareData data = ShareData.setShareData("text or other object to be 
-shared", ShareDataType.OTHER);
+	ShareData data = ShareData.setShareData("text or other object to be shared", ShareDataType.OTHER);
 	
 	server.sendData(data, ShareData.DEFAULT_PORT);
 	```
@@ -30,8 +29,7 @@ Client:
 	```
 	Client client = new Client();
 	
-	ShareData data = client.listen("localhost", 
-ShareData.DEFAULT_PORT);
+	ShareData data = client.listen("localhost", ShareData.DEFAULT_PORT);
 	```
 
 Make sure that localhost is replaced with whichever IP address you want to 
@@ -68,3 +66,33 @@ What else does 0.0.2 provide?
 OverTheWifi. Automating the SDK is coming soon in the next few updates. 
 Version 0.0.2 provides metadata support, allowing you to add information to 
 the content being shared that can be intercepted by the Client class.
+
+
+v 0.0.3:
+Listening on all devices connected to the wireless network is now possible! Version 0.0.2 also includes a new file sharing update, and client automation. Client automation is listening on a provided ip address, list of ip addresses, or ip addresses connected to your wifi router and automatically storing files on request, copying clipboard data, and much more! It's advisable to extend the Client class if you wish to implement a consent-based system.
+
+How do I listen automatically?
+
+Here's how:
+Please note that true is used to continuously listen on the provided list.
+To listen on all connected devices:
+	```
+
+	Client client = new Client(SharedData.DEFAULT_PORT);
+	client.listenForAllServers(true);
+	```
+To listen on a given set of IP addresses:
+	```
+	
+	Client client = new Client(SharedData.DEFAULT_PORT);
+	List<String> ipAddresses = new ArrayList<>();
+	client.listenOnServers(ipAddresses,true);
+	```
+To listen on a given IP address:
+	```
+	
+	Client client = new Client(SharedData.DEFAULT_PORT);
+	client.listenOnServer("ipaddress", true);
+	```
+	
+There's many more new features, so I suggest reading the code for yourself. The documentation of the code is excellent and explains nearly in depth what a function does, and what the variables inside a function are responsible for.

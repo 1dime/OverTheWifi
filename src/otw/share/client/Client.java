@@ -1,9 +1,14 @@
 package otw.share.client;
 
-import java.io.FileWriter;
+import java.awt.font.NumericShaper.Range;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -19,6 +24,9 @@ public class Client extends XPlatform
 	private Context context; //Helps determine if app using sdk is on Android or not
 	private OnClientConnectedToServer onClientConnected; //For returning connection results
 	private int CONNECTION_PORT = SharedData.DEFAULT_PORT; //Which port to listen to
+	
+	private List<Object> defaultResults = new ArrayList<>(); //Used by functions requiring an arraylist
+	private Object defaultResult = new Object();
 	public Client(Context context, int connectionPort)
 	{
 		this.context = context;
@@ -210,10 +218,13 @@ public class Client extends XPlatform
 		if(dataRetrieved.getSharedDataType().equals(SharedDataType.FILE))
 		{
 			try {
-				FileWriter writer = new FileWriter(dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_PATH).toString());
-				writer.write(dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT).toString());
-				writer.flush();
-				writer.close();
+				String savePath = dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_PATH).toString();
+				byte[] content = (byte[]) dataRetrieved.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT);
+				
+				FileOutputStream oos = new FileOutputStream(new File(savePath));
+				oos.write(content);
+				oos.flush();
+				oos.close();
 				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -245,30 +256,271 @@ public class Client extends XPlatform
 		return null;
 	}
 	
-	public Object listenOnServer(String ipAddress)
+	public Object listenOnServer(String ipAddress, boolean stayListening)
 	{
-		Object result = new Object();
-		SharedData data = this.getSharedData(ipAddress);
-		String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
-		switch(sharedDataType)
-		{
-		case "CLIPBOARD_DATA":
-			copyTextFromSharedData(data);
-			break;
+		Thread listener = new Thread(new Runnable()
+				{
+
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						if(stayListening)
+						{
+							while(stayListening)
+							{
+								try
+								{
+									//Get the SharedData from the ip address listed
+									SharedData data = Client.this.getSharedData(ipAddress);
+									//Return the SharedDataType used in SharedData as a string
+									String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+									//Use a switch statement on sharedDataType to check if it is CLIPBOARD_DATA, FILE, or OTHER
+									switch(sharedDataType)
+									{
+									case "CLIPBOARD_DATA":
+										//Copy the text from the given SharedData instance
+										copyTextFromSharedData(data);
+										//Set the result to the data being shared
+										defaultResult = data.getSharedData().toString();
+										break;
+										
+									case "FILE":
+										//Download the file given the SharedData instance
+										downloadFromSharedData(data);
+										//Set the result to the file content
+										defaultResult = data.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT);
+										break;
+										
+									case "OTHER":
+										//Just set the result to the SharedData
+										defaultResult = data.getSharedData();
+										break;
+									default:
+										//Same deal, set the result to the SharedData
+										defaultResult = data.getSharedData();
+										break;
+									}
+								}catch(Throwable t)
+								{
+									Client.this.listenOnServer(ipAddress, stayListening);
+								}
+								
+							}
+						}
+						else
+						{
+
+							//Get the SharedData from the ip address listed
+							SharedData data = Client.this.getSharedData(ipAddress);
+							//Return the SharedDataType used in SharedData as a string
+							String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+							//Use a switch statement on sharedDataType to check if it is CLIPBOARD_DATA, FILE, or OTHER
+							switch(sharedDataType)
+							{
+							case "CLIPBOARD_DATA":
+								//Copy the text from the given SharedData instance
+								copyTextFromSharedData(data);
+								//Set the result to the data being shared
+								defaultResult = data.getSharedData().toString();
+								break;
+								
+							case "FILE":
+								//Download the file given the SharedData instance
+								downloadFromSharedData(data);
+								//Set the result to the file content
+								defaultResult = data.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT);
+								break;
+								
+							case "OTHER":
+								//Just set the result to the SharedData
+								defaultResult = data.getSharedData();
+								break;
+							default:
+								//Same deal, set the result to the SharedData
+								defaultResult = data.getSharedData();
+								break;
+							}
+						}
+					}
 			
-		case "FILE":
-			downloadFromSharedData(data);
-			break;
-			
-		case "OTHER":
-			result = data.getSharedData();
-			break;
-		default:
-			result = data.getSharedData();
-			break;
-		}
+				});
 		
-		return result;
+		listener.start();
+		//Return the result so that the developer using this SDK can do as they please with it
+		return defaultResult;
 	}
 	
+	
+	public List<Object> listenOnServers(List<Object> ipAddresses, boolean stayListening)
+	{
+		Thread listener = new Thread(new Runnable()
+				{
+
+					@Override
+					public void run() 
+					{
+						// TODO Auto-generated method stub
+
+						//Use for adding the results of each SharedDataType request
+						List<Object> serverResults = new ArrayList<>();
+						if(stayListening)
+						{
+							while(stayListening)
+							{
+								//Go through all the servers in the list
+								for(Object serverObject : ipAddresses)
+								{
+									String server = serverObject.toString();
+									try
+									{
+										//Get the shared data for server
+										SharedData data = Client.this.getSharedData(server);
+										//Get the SharedDataType of the data we recieved from the server as a string
+										String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+										//Use the switch statement to detect if sharedDataType is CLIPBOARD_DATA, FILE, or OTHER
+										switch(sharedDataType)
+										{
+										case "CLIPBOARD_DATA":
+											//Copy the information we received
+											Client.this.copyTextFromSharedData(data);
+											//Add the information as a result
+											serverResults.add("CLIPBOARD_DATA " + data.getSharedData().toString());
+											break;
+										case "FILE":
+											//Download the file from the SharedData we acquired
+											Client.this.downloadFromSharedData(data);
+											//Add the shared data to the result
+											serverResults.add("FILE " + data.getSharedData().toString());
+											break;
+										case "OTHER":
+											//Add the response we got for the unknown
+											serverResults.add(data.getSharedData());
+											break;
+											
+										default:
+											//Same deal as OTHER
+											serverResults.add(data.getSharedData());
+											break;
+										}
+									}catch(Throwable t)
+									{
+									}
+								}
+								
+							}
+						}
+						else
+						{
+							//Go through all the servers in the list
+							for(Object serverObject : ipAddresses)
+							{
+								String server = serverObject.toString();
+								//Get the shared data for server
+								SharedData data = Client.this.getSharedData(server);
+								//Get the SharedDataType of the data we recieved from the server as a string
+								String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+								//Use the switch statement to detect if sharedDataType is CLIPBOARD_DATA, FILE, or OTHER
+								switch(sharedDataType)
+								{
+								case "CLIPBOARD_DATA":
+									//Copy the information we received
+									Client.this.copyTextFromSharedData(data);
+									//Add the information as a result
+									serverResults.add("CLIPBOARD_DATA " + data.getSharedData().toString());
+									break;
+								case "FILE":
+									//Download the file from the SharedData we acquired
+									Client.this.downloadFromSharedData(data);
+									//Add the shared data to the result
+									serverResults.add("FILE " + data.getSharedData().toString());
+									break;
+								case "OTHER":
+									//Add the response we got for the unknown
+									serverResults.add(data.getSharedData());
+									break;
+									
+								default:
+									//Same deal as OTHER
+									serverResults.add(data.getSharedData());
+									break;
+								}
+							}
+							
+						}
+					}
+			
+				});
+		
+		listener.start();
+		//Return the result for developers to use
+		return defaultResults;
+	}
+	
+	public List<Object> getAvailableIpAddresses(String subnet, int max)
+	{
+		//The speed of this is entirely dependent on 1. your device speed and 2. your device to router connection speed
+		//A typical 5GHZ wifi adapter will run this just fine
+		//Notify what range we are looking for
+		System.out.println("Looking for ip addresses within " + subnet + ".1 - " + subnet + "." + max);
+		//Use a for loop to get all ip addresses in the range 1 - max
+		for(int i = 1; i <= max; i++)
+		{
+			String ipAddress = subnet + "." + i;
+			System.out.println("Checking if " + ipAddress + " is available");
+			//Check if the ip address given is a valid ip
+			try 
+			{
+				if(InetAddress.getByName(ipAddress).isReachable(500))
+				{
+					System.out.println(ipAddress + " is valid!");
+					this.defaultResults.add(ipAddress);
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return this.defaultResults;
+	}
+	
+	public List<Object> getAvailableIpAddresses(int max)
+	{
+
+		//Return the available ip addresses with subnet as 192.168.0 and max as max
+		return this.getAvailableIpAddresses("192.168.0", max);
+	}
+	
+	public List<Object> getAvailableIpAddresses(String subnet)
+	{
+		//Return the available ip addresses with subnet as subnet and max as 100
+		return this.getAvailableIpAddresses(subnet, 100);
+	}
+	
+	
+	public List<Object> getAvailableIpAddresses()
+	{
+		//Return the ip addresses with 192.168.0 as subnet and max as 100
+		return this.getAvailableIpAddresses("192.168.0", 100);
+	}
+	public void listenForAllServers(String subnet, int max, boolean stayListening)
+	{
+		//Notify that the information is being looked for
+		System.out.println("Looking for shared information on the given list of servers");
+		//Get a list of all of the devices connected to the server
+		List<Object> connectedIpAddresses = this.getAvailableIpAddresses(subnet, max);
+		//Listen on all connected devices via listen on all servers
+		this.listenOnServers(connectedIpAddresses, stayListening);
+	}
+	
+	public void listenForAllServers(String subnet, boolean stayListening)
+	{
+		//Listen on all devices with subnet as subnet, max as 100, and stayListening as stayListening
+		this.listenForAllServers(subnet, 100, stayListening);
+	}
+	
+	public void listenForAllServers(boolean stayListening)
+	{
+		//Listen on all devices with subnet as 192.168.0 and stayListening as stayListening
+		this.listenForAllServers("192.168.0", stayListening);
+	}
 }

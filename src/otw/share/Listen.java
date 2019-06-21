@@ -16,8 +16,8 @@ public class Listen {
 	public static void main(String[] args) throws Exception 
 	{
 		Client client = new Client(SharedData.DEFAULT_PORT);
-		SharedData data = SharedData.setShareData("", SharedData.SharedDataType.CLIPBOARD_DATA);
-		client.listenOnServer("localhost");
+		//Listen on all connected devices constantly
+		client.listenForAllServers(true);
 		
 	}
 
