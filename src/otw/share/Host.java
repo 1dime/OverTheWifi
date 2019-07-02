@@ -12,9 +12,12 @@ public class Host {
 	{
 		// TODO Auto-generated method stub
 		Server server = new Server(SharedData.DEFAULT_PORT);
-		SharedData data = SharedData.setShareData("Hello World", SharedDataType.CLIPBOARD_DATA);
-		server.hostData(data, "192.168.0.32");
+		SharedData data = SharedData.setShareData("kimsible.xml", SharedData.SharedDataType.FILE);
+		data.addMetaData(SharedData.MetaData.METADATA_FILE_PATH, "kimsible.xml");
+		data.addMetaData(SharedData.MetaData.METADATA_FILE_CONTENT, new SharedData.SharedDataFileReader("pom.xml").read());
+		server.hostData(data, "localhost", "192.168.0.37");
 		
+		server.hostData(SharedData.setShareData("It's never", SharedDataType.CLIPBOARD_DATA), "192.168.0.31", "192.168.0.37");
 	}
 
 }

@@ -127,6 +127,23 @@ public class SharedData extends Object implements Serializable
 		metaDataValues.add(value);
 	}
 	
+	public void updateMetaData(String key, Object newValue)
+	{
+		//List all the keys
+		List<String> metaDataKeys = this.getMetaDataKeys();
+		//List all the value
+		List<Object> metaDataValues = this.getMetaDataValues();
+		
+		//Get the index of the given key in the metadata key list
+		int keyIndex = metaDataKeys.indexOf(key);
+		
+		//Remove the value from the metadata values list
+		metaDataValues.remove(keyIndex);
+		
+		//Add the new value
+		metaDataValues.add(keyIndex, newValue);
+	}
+	
 	public Object getMetaData(String key)
 	{
 		//Create an empty metaDataValue Object instance
@@ -157,6 +174,27 @@ public class SharedData extends Object implements Serializable
 	{
 		//Return the metaDataValues list
 		return this.metaDataValues;
+	}
+	
+	public boolean doesKeyExistInMetaData(String key)
+	{
+		//Get all of the MetaData keys
+		List<String> metaDataKeys = this.getMetaDataKeys();
+		//Use for returning if the key exists
+		boolean keyExists = false;
+		//Loop through the list
+		for(String metaDataKey : metaDataKeys)
+		{
+			//Check if the metaDataKey is equal to key
+			if(key == metaDataKey)
+			{
+				//Set keyExists to true
+				keyExists = true;
+			}
+		}
+		
+		//Return keyExists
+		return keyExists;
 	}
 	
 	@Override

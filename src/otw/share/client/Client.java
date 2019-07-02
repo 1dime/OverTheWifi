@@ -142,7 +142,20 @@ public class Client extends XPlatform
 		{
 			SharedData sharedData = (SharedData) this.getObjectFromServer(hostName).readObject();
 			
-			//Are we the intended target?
+			//Check if target_ip is a valid metadata key
+			if(sharedData.doesKeyExistInMetaData("target_ip"))
+			{
+				//Check if the current device is the intended target
+				if(sharedData.getMetaData("target_ip").toString() == InetAddress.getByName("localhost").getHostAddress().toString())
+				{
+					return sharedData;
+				}
+				else
+				{
+					this.onClientConnected.onFailedToRetrieveData(new Throwable("We are not the intended target"));
+					return null;
+				}
+			}
 			return sharedData;
 		}catch(IOException ioe)
 		{
@@ -156,62 +169,42 @@ public class Client extends XPlatform
 		return null;
 	}
 	
-	public void copyTextFromSharedData(SharedData data)
+	public SharedData copyTextFromSharedData(SharedData data)
 	{
 		SharedData dataRetrieved = data;
 		//Check if the dataRetrieved's type is CLIPBOARD_DATA
-				if(dataRetrieved.getSharedDataType().equals(SharedDataType.CLIPBOARD_DATA))
-				{
-					if(isAndroid())
-					{
-						AlertDialog dialog = new AlertDialog.Builder(context)
-								.setTitle("Copy hosted text?")
-								.setMessage("Someone is sharing their clipboard data. Accept?")
-								.setPositiveButton("Accept", new OnClickListener()
-										{
-
-											@Override
-											public void onClick(DialogInterface arg0, int arg1) {
-												// TODO Auto-generated method stub
-												//Copy the text using the crossplatform clipboard
-												Clipboard clipboard = new Clipboard(context);
-												//Copy the text
-												clipboard.copy(dataRetrieved);
-											}
-									
-										})
-								.setNegativeButton("Deny", new OnClickListener()
-										{
-
-											@Override
-											public void onClick(DialogInterface arg0, int arg1) {
-												// TODO Auto-generated method stub
-												arg0.dismiss();
-											}
-									
-										})
-								.show();
-					}
-					else
-					{
-						//Copy the text using the crossplatform clipboard
-						Clipboard clipboard = new Clipboard(this.context);
-						//Copy the text
-						clipboard.copy(dataRetrieved);
-					}
-				}
+		if(dataRetrieved.getSharedDataType().equals(SharedDataType.CLIPBOARD_DATA))
+		{
+			if(!isAndroid())
+			{
+				//Use the default clipboard
+				Clipboard clipboard = new Clipboard();
+				//Copy the text
+				clipboard.copy(dataRetrieved);
+			}
+		}
+		
+		return dataRetrieved;
 	}
 	
-	public void copyTextFromServer(String hostName)
+	public SharedData copyTextFromServer(String hostName)
 	{
 		//Get the hosted data
-		SharedData dataRetrieved = this.getSharedData(hostName);
-		if(dataRetrieved == null)
-			return;
-		this.copyTextFromSharedData(dataRetrieved);
+		try
+		{
+			SharedData dataRetrieved = this.getSharedData(hostName);
+			if(dataRetrieved == null)
+				return null;
+			return this.copyTextFromSharedData(dataRetrieved);
+		}catch(NullPointerException npe)
+		{
+			this.onClientConnected.onFailedToRetrieveData(npe);
+		}
+		
+		return null;
 	}
 	
-	public void downloadFromSharedData(SharedData data)
+	public SharedData downloadFromSharedData(SharedData data)
 	{
 		SharedData dataRetrieved = data;
 		//Check if the dataRetrieved's type is FILE
@@ -230,29 +223,49 @@ public class Client extends XPlatform
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
 		}
+		
+		return dataRetrieved;
 	}
 	
-	public void downloadFromServer(String hostName)
+	public SharedData downloadFromServer(String hostName)
 	{
-		//GEt the hosted data
-		SharedData dataRetrieved = this.getSharedData(hostName);
-		if(dataRetrieved == null)
-			return;
+		//Get the hosted data
+		try
+		{
+			SharedData dataRetrieved = this.getSharedData(hostName);
+			if(!isAndroid())
+			{
+				if(dataRetrieved == null)
+					return null;
+				return this.downloadFromSharedData(dataRetrieved);
+			}
+			
+			return dataRetrieved;
+			
+		}catch(NullPointerException npe)
+		{
+			this.onClientConnected.onFailedToRetrieveData(npe);
+		}
 		
-		this.downloadFromSharedData(dataRetrieved);
+		return null;
 	}
 	
 	public Object getDataFromOtherType(String hostname)
 	{
-		SharedData data = this.getSharedData(hostname);
-		if(data == null)
-			return "";
-		
-		if(data.getSharedDataType().equals(SharedDataType.OTHER))
-			return data.getSharedData();
-		
+		try
+		{
+			SharedData data = this.getSharedData(hostname);
+			if(data == null)
+				return "";
+			
+			if(data.getSharedDataType().equals(SharedDataType.OTHER))
+				return data.getSharedData();
+			
+		}catch(NullPointerException npe)
+		{
+			this.onClientConnected.onConnectionFail(npe);
+		}
 		return null;
 	}
 	
@@ -309,36 +322,42 @@ public class Client extends XPlatform
 						}
 						else
 						{
-
-							//Get the SharedData from the ip address listed
-							SharedData data = Client.this.getSharedData(ipAddress);
-							//Return the SharedDataType used in SharedData as a string
-							String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
-							//Use a switch statement on sharedDataType to check if it is CLIPBOARD_DATA, FILE, or OTHER
-							switch(sharedDataType)
+							try
 							{
-							case "CLIPBOARD_DATA":
-								//Copy the text from the given SharedData instance
-								copyTextFromSharedData(data);
-								//Set the result to the data being shared
-								defaultResult = data.getSharedData().toString();
-								break;
-								
-							case "FILE":
-								//Download the file given the SharedData instance
-								downloadFromSharedData(data);
-								//Set the result to the file content
-								defaultResult = data.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT);
-								break;
-								
-							case "OTHER":
-								//Just set the result to the SharedData
-								defaultResult = data.getSharedData();
-								break;
-							default:
-								//Same deal, set the result to the SharedData
-								defaultResult = data.getSharedData();
-								break;
+
+								//Get the SharedData from the ip address listed
+								SharedData data = Client.this.getSharedData(ipAddress);
+								//Return the SharedDataType used in SharedData as a string
+								String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+								//Use a switch statement on sharedDataType to check if it is CLIPBOARD_DATA, FILE, or OTHER
+								switch(sharedDataType)
+								{
+								case "CLIPBOARD_DATA":
+									//Copy the text from the given SharedData instance
+									copyTextFromSharedData(data);
+									//Set the result to the data being shared
+									defaultResult = data.getSharedData().toString();
+									break;
+									
+								case "FILE":
+									//Download the file given the SharedData instance
+									downloadFromSharedData(data);
+									//Set the result to the file content
+									defaultResult = data.getMetaData(SharedData.MetaData.METADATA_FILE_CONTENT);
+									break;
+									
+								case "OTHER":
+									//Just set the result to the SharedData
+									defaultResult = data.getSharedData();
+									break;
+								default:
+									//Same deal, set the result to the SharedData
+									defaultResult = data.getSharedData();
+									break;
+								}
+							}catch(Throwable t)
+							{
+								onClientConnected.onFailedToRetrieveData(t);
 							}
 						}
 					}
@@ -414,35 +433,42 @@ public class Client extends XPlatform
 							//Go through all the servers in the list
 							for(Object serverObject : ipAddresses)
 							{
-								String server = serverObject.toString();
-								//Get the shared data for server
-								SharedData data = Client.this.getSharedData(server);
-								//Get the SharedDataType of the data we recieved from the server as a string
-								String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
-								//Use the switch statement to detect if sharedDataType is CLIPBOARD_DATA, FILE, or OTHER
-								switch(sharedDataType)
+								try
 								{
-								case "CLIPBOARD_DATA":
-									//Copy the information we received
-									Client.this.copyTextFromSharedData(data);
-									//Add the information as a result
-									serverResults.add("CLIPBOARD_DATA " + data.getSharedData().toString());
-									break;
-								case "FILE":
-									//Download the file from the SharedData we acquired
-									Client.this.downloadFromSharedData(data);
-									//Add the shared data to the result
-									serverResults.add("FILE " + data.getSharedData().toString());
-									break;
-								case "OTHER":
-									//Add the response we got for the unknown
-									serverResults.add(data.getSharedData());
-									break;
+
+									String server = serverObject.toString();
+									//Get the shared data for server
+									SharedData data = Client.this.getSharedData(server);
+									//Get the SharedDataType of the data we recieved from the server as a string
+									String sharedDataType = data.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE).toString();
+									//Use the switch statement to detect if sharedDataType is CLIPBOARD_DATA, FILE, or OTHER
+									switch(sharedDataType)
+									{
+									case "CLIPBOARD_DATA":
+										//Copy the information we received
+										Client.this.copyTextFromSharedData(data);
+										//Add the information as a result
+										serverResults.add("CLIPBOARD_DATA " + data.getSharedData().toString());
+										break;
+									case "FILE":
+										//Download the file from the SharedData we acquired
+										Client.this.downloadFromSharedData(data);
+										//Add the shared data to the result
+										serverResults.add("FILE " + data.getSharedData().toString());
+										break;
+									case "OTHER":
+										//Add the response we got for the unknown
+										serverResults.add(data.getSharedData());
+										break;
+										
+									default:
+										//Same deal as OTHER
+										serverResults.add(data.getSharedData());
+										break;
+									}
+								}catch(Throwable t)
+								{
 									
-								default:
-									//Same deal as OTHER
-									serverResults.add(data.getSharedData());
-									break;
 								}
 							}
 							

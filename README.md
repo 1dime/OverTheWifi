@@ -96,3 +96,8 @@ To listen on a given IP address:
 	```
 	
 There's many more new features, so I suggest reading the code for yourself. The documentation of the code is excellent and explains nearly in depth what a function does, and what the variables inside a function are responsible for.
+
+v 0.0.4:
+General under-the-hood repairs, bug fixes and more. Also, since Android needs AsyncTask, copying and downloading files is held exclusively towards PC / Mac / 
+Linux. I mean the download from server and copy text from server functions. You can still download from SharedData and copy from SharedData. If you're so 
+inclined, check out my open source Android version of OverTheWifi at https://github.com/RedDogCode/OverTheWifiAndroid.git

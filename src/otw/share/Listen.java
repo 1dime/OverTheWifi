@@ -17,8 +17,7 @@ public class Listen {
 	{
 		Client client = new Client(SharedData.DEFAULT_PORT);
 		//Listen on all connected devices constantly
-		client.listenForAllServers(true);
-		
+		client.copyTextFromServer("localhost");
 	}
 
    

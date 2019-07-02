@@ -1,7 +1,10 @@
 package otw.share.server;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -12,6 +15,7 @@ import otw.share.xplatform.XPlatform;
 public class Server extends XPlatform
 {
 	private boolean hasConnectionBeenMade = false; //For the while loop for multiple connections
+	private boolean reconnect = false;
 	private Socket socket;
 	private ServerSocket serverSocket;
 	private Context context;
@@ -309,6 +313,50 @@ public class Server extends XPlatform
 		return this.onServerHosting;
 	}
 	
+	public void hostData(SharedData sharedData, String hostName, String targetHost)
+	{
+		//Check if metadata contains shareddatatype for automation
+		if(sharedData.getMetaData(SharedData.MetaData.METADATA_SHARED_DATA_TYPE) == null)
+		{
+			this.onServerHosting.onFailedToCreateServer(new Throwable(SharedData.MetaData.METADATA_SHARED_DATA_TYPE + "metadata is not set in SharedData"));
+			return;
+		}
+		//Add the target_ip metadata
+		sharedData.addMetaData("target_ip", targetHost.toString());
+
+		try 
+		{
+			if(!this.hasConnectionBeenMade)
+			{
+				//Create the writer
+				ObjectOutputStream streamWriter = this.getStreamWriter(hostName);
+				//System.out.println(this.getServerSocket().getInetAddress().getHostAddress());
+				//Write it all out
+				streamWriter.writeObject(sharedData);
+				//Flush the writer
+				streamWriter.flush();
+				//Close the writer
+				streamWriter.close();
+				
+				//Close the socket
+				getSocket().close();
+				//End the server
+				//getServerSocket().close();
+				//The connection has been made
+				this.hasConnectionBeenMade = true;
+				String ip=(((InetSocketAddress) socket.getRemoteSocketAddress()).getAddress()).toString().replace("/","");
+				FileWriter writer = new FileWriter(ip + ".txt");
+				writer.write("Connected");
+				writer.flush();
+				writer.close();
+			}
+		} catch (IOException | NullPointerException e) 
+		{
+			//Notify of the error
+			this.onServerHosting.onFailedToHostSharedData(e);
+		} 
+	}
+	
 	public void hostData(SharedData sharedData, String hostName)
 	{
 		//Check if metadata contains shareddatatype for automation
@@ -334,7 +382,7 @@ public class Server extends XPlatform
 				//Close the socket
 				getSocket().close();
 				//End the server
-				getServerSocket().close();
+				//getServerSocket().close();
 				//The connection has been made
 				this.hasConnectionBeenMade = true;
 			}
