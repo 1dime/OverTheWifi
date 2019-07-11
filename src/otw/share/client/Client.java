@@ -142,11 +142,11 @@ public class Client extends XPlatform
 		{
 			SharedData sharedData = (SharedData) this.getObjectFromServer(hostName).readObject();
 			
-			//Check if target_ip is a valid metadata key
-			if(sharedData.doesKeyExistInMetaData("target_ip"))
+			//Check if TARGET_CLIENT is a valid metadata key
+			if(sharedData.doesKeyExistInMetaData("TARGET_CLIENT"))
 			{
 				//Check if the current device is the intended target
-				if(sharedData.getMetaData("target_ip").toString() == InetAddress.getByName("localhost").getHostAddress().toString())
+				if(sharedData.getMetaData("TARGET_CLIENT").toString() == InetAddress.getByName("localhost").getHostAddress().toString())
 				{
 					return sharedData;
 				}

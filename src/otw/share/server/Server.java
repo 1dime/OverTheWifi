@@ -3,10 +3,12 @@ package otw.share.server;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketOptions;
+import java.net.StandardSocketOptions;
+import java.net.UnknownHostException;
 
 import android.content.Context;
 import otw.share.SharedData;
@@ -14,6 +16,8 @@ import otw.share.xplatform.XPlatform;
 
 public class Server extends XPlatform
 {
+	private static boolean killSecondsAfter = false;
+	private static boolean keepAlive = true;
 	private boolean hasConnectionBeenMade = false; //For the while loop for multiple connections
 	private boolean reconnect = false;
 	private Socket socket;
@@ -240,6 +244,16 @@ public class Server extends XPlatform
 		});
 	}
 	
+	public void mustKeepAlive(boolean keepAlive)
+	{
+		this.keepAlive = keepAlive;
+	}
+	
+	public void setKillSecondsAfter(boolean killSecondsAfter)
+	{
+		this.killSecondsAfter = killSecondsAfter;
+	}
+	
 	public void setOnServerHostingSharedData(OnServerHostingSharedData onServerHosting)
 	{
 		this.onServerHosting = onServerHosting;
@@ -250,6 +264,8 @@ public class Server extends XPlatform
 		try {
 			//Create the server via ServerSocket class, using HOSTING_PORT
 			serverSocket = new ServerSocket(this.HOSTING_PORT);
+			serverSocket.setReuseAddress(true);
+			
 			//Notify the sdk that the server was created successfully
 			this.onServerHosting.onServerSuccessfullyCreated();
 			//Return the serverSocket
@@ -321,40 +337,22 @@ public class Server extends XPlatform
 			this.onServerHosting.onFailedToCreateServer(new Throwable(SharedData.MetaData.METADATA_SHARED_DATA_TYPE + "metadata is not set in SharedData"));
 			return;
 		}
-		//Add the target_ip metadata
-		sharedData.addMetaData("target_ip", targetHost.toString());
+		//Add the TARGET_CLIENT metadata
+		sharedData.addMetaData("TARGET_CLIENT", targetHost.toString());
 
 		try 
 		{
 			if(!this.hasConnectionBeenMade)
 			{
-				//Create the writer
-				ObjectOutputStream streamWriter = this.getStreamWriter(hostName);
-				//System.out.println(this.getServerSocket().getInetAddress().getHostAddress());
-				//Write it all out
-				streamWriter.writeObject(sharedData);
-				//Flush the writer
-				streamWriter.flush();
-				//Close the writer
-				streamWriter.close();
+				ServerSocket serverSocket = new ServerSocket(this.HOSTING_PORT);
+				new Thread(new ServerThread(sharedData, serverSocket)).start();
 				
-				//Close the socket
-				getSocket().close();
-				//End the server
-				//getServerSocket().close();
-				//The connection has been made
-				this.hasConnectionBeenMade = true;
-				String ip=(((InetSocketAddress) socket.getRemoteSocketAddress()).getAddress()).toString().replace("/","");
-				FileWriter writer = new FileWriter(ip + ".txt");
-				writer.write("Connected");
-				writer.flush();
-				writer.close();
 			}
 		} catch (IOException | NullPointerException e) 
 		{
 			//Notify of the error
 			this.onServerHosting.onFailedToHostSharedData(e);
-		} 
+		}
 	}
 	
 	public void hostData(SharedData sharedData, String hostName)
@@ -370,8 +368,35 @@ public class Server extends XPlatform
 		{
 			if(!this.hasConnectionBeenMade)
 			{
-				//Create the writer
-				ObjectOutputStream streamWriter = this.getStreamWriter(hostName);
+				ServerSocket serverSocket = new ServerSocket(this.HOSTING_PORT);
+				new Thread(new ServerThread(sharedData, serverSocket)).start();
+				this.hasConnectionBeenMade = false;
+			}
+		} catch (IOException | NullPointerException e) 
+		{
+			//Notify of the error
+			this.onServerHosting.onFailedToHostSharedData(e);
+		}
+	}
+	
+	public static class ServerThread implements Runnable
+	{
+		private SharedData sharedData;
+		private Socket socket;
+		private ServerSocket serverSocket;
+		public ServerThread(SharedData sharedData, ServerSocket serverSocket) throws IOException
+		{
+			this.sharedData = sharedData;
+			this.serverSocket = serverSocket;
+			this.socket = this.serverSocket.accept();
+		}
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			//Create the writer
+			ObjectOutputStream streamWriter;
+			try {
+				streamWriter = new ObjectOutputStream(this.socket.getOutputStream());
 				//Write it all out
 				streamWriter.writeObject(sharedData);
 				//Flush the writer
@@ -380,16 +405,25 @@ public class Server extends XPlatform
 				streamWriter.close();
 				
 				//Close the socket
-				getSocket().close();
-				//End the server
-				//getServerSocket().close();
-				//The connection has been made
-				this.hasConnectionBeenMade = true;
+				socket.close();
+				if(killSecondsAfter)
+				{
+					try {
+						Thread.sleep(5000);
+						serverSocket.close();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+				}
+				else if(keepAlive)
+					new Thread(new ServerThread(this.sharedData, this.serverSocket)).start();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-		} catch (IOException | NullPointerException e) 
-		{
-			//Notify of the error
-			this.onServerHosting.onFailedToHostSharedData(e);
-		} 
+		}
+		
 	}
 }

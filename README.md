@@ -101,3 +101,7 @@ v 0.0.4:
 General under-the-hood repairs, bug fixes and more. Also, since Android needs AsyncTask, copying and downloading files is held exclusively towards PC / Mac / 
 Linux. I mean the download from server and copy text from server functions. You can still download from SharedData and copy from SharedData. If you're so 
 inclined, check out my open source Android version of OverTheWifi at https://github.com/RedDogCode/OverTheWifiAndroid.git
+
+v 0.0.5:
+As promised, a server keep-alive feature was added. Now you do not have to worry about the unintended device connecting to your shareddata server,
+as the device itself will simply ignore the information not intended for it.
